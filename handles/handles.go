@@ -21,7 +21,7 @@ var (
 	ConsumerSecret="mu6XG0MNTCKAiKvPdZusSRLGgMvpoNFZiw42d7bHbc1haMfpvBWt0GA5VOVGguid"
 	ShortCode="174379"
 	PassKey="bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
-	CallbackURL="https://301f-2c0f-fe38-2251-9037-6665-dee/callback"
+	CallbackURL="https://mpesaapi.onrender.com/callback"
 )
 
 func GetAccessToken() (string, error) {
