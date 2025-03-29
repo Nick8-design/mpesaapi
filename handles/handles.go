@@ -17,8 +17,8 @@ import (
 
 // Safaricom API Credentials (from environment variables)
 var (
-	ConsumerKey="fYGoe4lz1jXlAxWVsriCBALe2GXx51AMguzu6pxRZStNFj6x"
-	ConsumerSecret="mu6XG0MNTCKAiKvPdZusSRLGgMvpoNFZiw42d7bHbc1haMfpvBWt0GA5VOVGguid"
+	ConsumerKey="IipnyUCB5G8vFAH2QVmkgAqiQFhhMgmHHX1jdZukMNlSY33d"
+	ConsumerSecret="zNcEFFKNBVsqR5z5SibNxUfLlX56cmyakcJ31SAWBWPzj4oT5fzvH1jOZkDOS5kt"
 	ShortCode="174379"
 	PassKey="bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
 	CallbackURL="https://mpesaapi.onrender.com/callback"
@@ -91,14 +91,14 @@ func StkPushHandler(c *fiber.Ctx) error {
         }
 
         // Generate Timestamp
-        timestamp := time.Now().Format("20060102150405")
+        timestamp := time.Now().Format("20160216165627")
 
         // Encode Password
-        password := base64.StdEncoding.EncodeToString([]byte(ShortCode + PassKey + timestamp))
+        // password := base64.StdEncoding.EncodeToString([]byte(ShortCode + PassKey + timestamp))
 
         stkRequest := models.STKPushRequest{
                 BusinessShortCode: ShortCode,
-                Password:          password,
+                Password:"MTc0Mzc5YmZiMjc5ZjlhYTliZGJjZjE1OGU5N2RkNzFhNDY3Y2QyZTBjODkzMDU5YjEwZjc4ZTZiNzJhZGExZWQyYzkxOTIwMTYwMjE2MTY1NjI3",
                 Timestamp:         timestamp,
                 TransactionType:   "CustomerPayBillOnline",
                 Amount:            requestData.Amount,
