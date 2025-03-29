@@ -1,7 +1,12 @@
 package main
 
+// import (
+// 	"fmt"
+// 	"mpesa/handles"
+// )
+
 import (
-	"fmt"
+
 	"log"
 	"mpesa/db"
 	"mpesa/handles"
@@ -23,6 +28,14 @@ func main() {
 	app.Post("/stkpush", handles.StkPushHandler)
 	app.Post("/callback", handles.CallbackHandler)
 
-	fmt.Println("Server running on port 8080")
 	log.Fatal(app.Listen(":8080"))
 }
+
+// func main() {
+//     token, err := handles.GetAccessToken()
+//     if err != nil {
+//         fmt.Println("Error:", err)
+//     } else {
+//         fmt.Println("Access Token:", token)
+//     }
+// }
