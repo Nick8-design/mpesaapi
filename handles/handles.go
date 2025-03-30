@@ -89,7 +89,7 @@ func StkPushHandler(c *fiber.Ctx) error {
 		PhoneNumber:       requestData.PhoneNumber,
 		CallBackURL:       CallbackURL,
 		AccountReference:  "FlutterPayment",
-		TransactionDesc:   "Payment from Flutter App",
+		TransactionDesc:   "Booking of house",
 	}
 
 	jsonData, err := json.Marshal(stkRequest)
