@@ -128,34 +128,69 @@ func StkPushHandler(c *fiber.Ctx) error {
 	return c.JSON(stkResponse)
 }
 
+
+
+
 func CallbackHandler(c *fiber.Ctx) error {
-	var callbackData map[string]interface{}
-	if err := c.BodyParser(&callbackData); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid callback data"})
-	}
+    log.Println("📩 Received Callback Request")
 
-	log.Println("Callback Response:", callbackData)
+    var callbackData map[string]interface{}
 
-	if body, ok := callbackData["Body"].(map[string]interface{}); ok {
-		if stkCallback, ok := body["stkCallback"].(map[string]interface{}); ok {
-			if resultCode, ok := stkCallback["ResultCode"].(float64); ok && resultCode == 0 {
-				checkoutID := stkCallback["CheckoutRequestID"].(string)
-				transactionID := stkCallback["MpesaReceiptNumber"].(string)
+    if err := c.BodyParser(&callbackData); err != nil {
+        log.Println("❌ Failed to parse callback:", err)
+        return c.Status(400).JSON(fiber.Map{"error": "Invalid callback data"})
+    }
 
-				var payment models.Payment
-				db.Db.Where("checkout_id = ?", checkoutID).First(&payment)
-				payment.TransactionID = transactionID
-				payment.Status = "Completed"
-				db.Db.Save(&payment)
-			} else {
-				checkoutID := stkCallback["CheckoutRequestID"].(string)
-				var payment models.Payment
-				db.Db.Where("checkout_id = ?", checkoutID).First(&payment)
-				payment.Status = "Failed"
-				db.Db.Save(&payment)
-			}
-		}
-	}
+    log.Println("✅ Callback Data:", callbackData) // Log full response
 
-	return c.SendStatus(fiber.StatusOK)
+    resultCode, ok := callbackData["Body"].(map[string]interface{})["stkCallback"].(map[string]interface{})["ResultCode"]
+    
+    if !ok {
+        log.Println("❌ Missing ResultCode in callback!")
+        return c.Status(400).JSON(fiber.Map{"error": "Invalid callback structure"})
+    }
+
+    if resultCode == 0 {
+        log.Println("✅ Payment successful! Updating house booking...")
+        return c.JSON(fiber.Map{"status": "success", "message": "Payment received"})
+    }
+
+    log.Println("❌ Payment failed!")
+    return c.JSON(fiber.Map{"status": "failed", "message": "Payment failed"})
 }
+
+
+
+// func CallbackHandler(c *fiber.Ctx) error {
+// 	var callbackData map[string]interface{}
+
+	
+// 	if err := c.BodyParser(&callbackData); err != nil {
+// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid callback data"})
+// 	}
+
+// 	log.Println("Callback Response:", callbackData)
+
+// 	if body, ok := callbackData["Body"].(map[string]interface{}); ok {
+// 		if stkCallback, ok := body["stkCallback"].(map[string]interface{}); ok {
+// 			if resultCode, ok := stkCallback["ResultCode"].(float64); ok && resultCode == 0 {
+// 				checkoutID := stkCallback["CheckoutRequestID"].(string)
+// 				transactionID := stkCallback["MpesaReceiptNumber"].(string)
+
+// 				var payment models.Payment
+// 				db.Db.Where("checkout_id = ?", checkoutID).First(&payment)
+// 				payment.TransactionID = transactionID
+// 				payment.Status = "Completed"
+// 				db.Db.Save(&payment)
+// 			} else {
+// 				checkoutID := stkCallback["CheckoutRequestID"].(string)
+// 				var payment models.Payment
+// 				db.Db.Where("checkout_id = ?", checkoutID).First(&payment)
+// 				payment.Status = "Failed"
+// 				db.Db.Save(&payment)
+// 			}
+// 		}
+// 	}
+
+// 	return c.SendStatus(fiber.StatusOK)
+// }
