@@ -27,7 +27,7 @@ func main() {
 	app.Use(logger.New())
 
 	app.Post("/stkpush", handles.StkPushHandler)
-	app.Post("/callback", handles.CallbackHandler)
+	app.Get("/callback", handles.CallbackHandler)
 
 
 	log.Fatal(app.Listen(":8080"))
