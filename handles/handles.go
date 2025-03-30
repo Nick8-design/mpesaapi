@@ -130,33 +130,51 @@ func StkPushHandler(c *fiber.Ctx) error {
 
 
 
-
 func CallbackHandler(c *fiber.Ctx) error {
-    log.Println("📩 Received Callback Request")
+	// Parse JSON body
+	var callback models.StkCallback
+	if err := json.Unmarshal(c.Body(), &callback); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Invalid JSON format"})
+	}
 
-    var callbackData map[string]interface{}
+	// Extract key values
+	resultCode := callback.Body.StkCallback.ResultCode
+	resultDesc := callback.Body.StkCallback.ResultDesc
+	// checkoutRequestID := callback.Body.StkCallback.CheckoutRequestID
+	// merchantRequestID := callback.Body.StkCallback.MerchantRequestID
 
-    if err := c.BodyParser(&callbackData); err != nil {
-        log.Println("❌ Failed to parse callback:", err)
-        return c.Status(400).JSON(fiber.Map{"error": "Invalid callback data"})
-    }
+	var mpesaReceiptNumber string
+	var phoneNumber int64
+	var amount float64
 
-    log.Println("✅ Callback Data:", callbackData) // Log full response
+	// Loop through CallbackMetadata to find MpesaReceiptNumber, PhoneNumber, Amount
+	for _, item := range callback.Body.StkCallback.CallbackMetadata.Item {
+		switch item.Name {
+		case "MpesaReceiptNumber":
+			mpesaReceiptNumber = item.Value.(string)
+		case "PhoneNumber":
+			phoneNumber = int64(item.Value.(float64))
+		case "Amount":
+			amount = item.Value.(float64)
+		}
+	}
 
-    resultCode, ok := callbackData["Body"].(map[string]interface{})["stkCallback"].(map[string]interface{})["ResultCode"]
-    
-    if !ok {
-        log.Println("❌ Missing ResultCode in callback!")
-        return c.Status(400).JSON(fiber.Map{"error": "Invalid callback structure"})
-    }
+	// Log transaction details
+	fmt.Printf("Payment received: %+v\n", callback)
 
-    if resultCode == 0 {
-        log.Println("✅ Payment successful! Updating house booking...")
-        return c.JSON(fiber.Map{"status": "success", "message": "Payment received"})
-    }
+	// Check if transaction was successful
+	if resultCode == 0 {
+		fmt.Println("Transaction Successful:", mpesaReceiptNumber, phoneNumber, amount)
+		// Store transaction in database (to be implemented)
+	} else {
+		fmt.Println("Transaction Failed:", resultDesc)
+	}
 
-    log.Println("❌ Payment failed!")
-    return c.JSON(fiber.Map{"status": "failed", "message": "Payment failed"})
+	// Respond to Safaricom
+	return c.JSON(fiber.Map{
+		"message": "Callback received successfully",
+		"status":  "ok",
+	})
 }
 
 
