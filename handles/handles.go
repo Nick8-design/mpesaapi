@@ -88,7 +88,7 @@ func StkPushHandler(c *fiber.Ctx) error {
 		PartyB:            ShortCode,
 		PhoneNumber:       requestData.PhoneNumber,
 		CallBackURL:       CallbackURL,
-		AccountReference:  "FlutterPayment",
+		AccountReference:  "House Booking",
 		TransactionDesc:   "Booking of house",
 	}
 
