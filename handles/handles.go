@@ -188,65 +188,68 @@ func StkPushHandler(c *fiber.Ctx) error {
 // }
 
 
-
 func CallbackHandler(c *fiber.Ctx) error {
-	var callbackData map[string]interface{}
+    var callbackData map[string]interface{}
 
-	// Parse the request body
-	if err := c.BodyParser(&callbackData); err != nil {
-		log.Println("Error parsing callback data:", err)
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid callback data"})
-	}
+    // Parse the incoming JSON request
+    if err := c.BodyParser(&callbackData); err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid callback data"})
+    }
 
-	log.Println("Full Callback Response:", callbackData) // Debugging log
+    log.Println("Full Callback Response:", callbackData)
 
-	// Ensure "Body" exists
-	body, bodyOk := callbackData["Body"].(map[string]interface{})
-	if !bodyOk {
-		log.Println("Missing 'Body' field in callback")
-		return c.Status(406).JSON(fiber.Map{"error": "Missing 'Body' field"})
-	}
+    // Check if the response contains the expected structure
+    if body, ok := callbackData["Body"].(map[string]interface{}); ok {
+        if stkCallback, ok := body["stkCallback"].(map[string]interface{}); ok {
+            checkoutID, _ := stkCallback["CheckoutRequestID"].(string)
 
-	// Ensure "stkCallback" exists
-	stkCallback, stkOk := body["stkCallback"].(map[string]interface{})
-	if !stkOk {
-		log.Println("Missing 'stkCallback' field in callback")
-		return c.Status(406).JSON(fiber.Map{"error": "Missing 'stkCallback' field"})
-	}
+            // Extract ResultCode
+            resultCode, ok := stkCallback["ResultCode"].(float64)
+            if !ok {
+                return c.Status(406).JSON(fiber.Map{"error": "Missing ResultCode"})
+            }
 
-	// Ensure "ResultCode" exists
-	resultCode, resultCodeOk := stkCallback["ResultCode"].(float64)
-	if !resultCodeOk {
-		log.Println("Missing 'ResultCode' field in callback")
-		return c.Status(406).JSON(fiber.Map{"error": "Missing 'ResultCode' field"})
-	}
+            var transactionID string
 
-	// Extract CheckoutRequestID
-	checkoutID, checkoutOk := stkCallback["CheckoutRequestID"].(string)
-	if !checkoutOk {
-		log.Println("Missing 'CheckoutRequestID' field in callback")
-		return c.Status(406).JSON(fiber.Map{"error": "Missing 'CheckoutRequestID' field"})
-	}
+            // If payment was successful, extract Transaction ID from CallbackMetadata
+            if resultCode == 0 {
+                if callbackMetadata, ok := stkCallback["CallbackMetadata"].(map[string]interface{}); ok {
+                    if items, ok := callbackMetadata["Item"].([]interface{}); ok {
+                        for _, item := range items {
+                            itemMap, _ := item.(map[string]interface{})
+                            if name, _ := itemMap["Name"].(string); name == "MpesaReceiptNumber" {
+                                transactionID, _ = itemMap["Value"].(string)
+                            }
+                        }
+                    }
+                }
 
-	// Find the payment record
-	var payment models.Payment
-	db.Db.Where("checkout_id = ?", checkoutID).First(&payment)
+                if transactionID == "" {
+                    log.Println("Missing 'MpesaReceiptNumber' field in callback")
+                    return c.Status(406).JSON(fiber.Map{"error": "Missing MpesaReceiptNumber"})
+                }
 
-	if resultCode == 0 {
-		// Ensure "MpesaReceiptNumber" exists
-		transactionID, transactionOk := stkCallback["MpesaReceiptNumber"].(string)
-		if !transactionOk {
-			log.Println("Missing 'MpesaReceiptNumber' field in callback")
-			return c.Status(406).JSON(fiber.Map{"error": "Missing 'MpesaReceiptNumber' field"})
-		}
+                // Update database with transaction ID
+                var payment models.Payment
+                db.Db.Where("checkout_id = ?", checkoutID).First(&payment)
+                payment.TransactionID = transactionID
+                payment.Status = "Completed"
+                db.Db.Save(&payment)
 
-		payment.TransactionID = transactionID
-		payment.Status = "Completed"
-	} else {
-		payment.Status = "Failed"
-	}
+                return c.SendStatus(fiber.StatusOK)
+            } else {
+                // Update status as "Failed"
+                var payment models.Payment
+                db.Db.Where("checkout_id = ?", checkoutID).First(&payment)
+                payment.Status = "Failed"
+                db.Db.Save(&payment)
 
-	// Save updated payment status
-	db.Db.Save(&payment)
-	return c.SendStatus(fiber.StatusOK)
+                return c.SendStatus(fiber.StatusOK)
+            }
+        }
+    }
+
+    // Handle unexpected responses with no "Body"
+    log.Println("Missing 'Body' field in callback")
+    return c.Status(406).JSON(fiber.Map{"error": "Invalid callback structure"})
 }
