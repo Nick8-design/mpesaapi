@@ -289,5 +289,5 @@ if callbackData.Body.StkCallback.ResultCode == 0 {
 		// return c.Status(400).JSON(fiber.Map{"message":callbackData.Body.StkCallback.ResultDesc,"state":"failed"});
 
 }
- return c.SendStatus(fiber.StatusOK)
+ return c.Status(fiber.StatusOK).JSON(fiber.Map{"status":"ok"})
 }
