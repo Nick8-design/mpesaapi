@@ -189,39 +189,64 @@ func StkPushHandler(c *fiber.Ctx) error {
 
 
 
-
 func CallbackHandler(c *fiber.Ctx) error {
 	var callbackData map[string]interface{}
 
-	
+	// Parse the request body
 	if err := c.BodyParser(&callbackData); err != nil {
+		log.Println("Error parsing callback data:", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid callback data"})
 	}
 
-	log.Println("Callback Response:", callbackData)
+	log.Println("Full Callback Response:", callbackData) // Debugging log
 
-	if body, ok := callbackData["Body"].(map[string]interface{}); ok {
-		if stkCallback, ok := body["stkCallback"].(map[string]interface{}); ok {
-			if resultCode, ok := stkCallback["ResultCode"].(float64); ok && resultCode == 0 {
-				checkoutID := stkCallback["CheckoutRequestID"].(string)
-				transactionID := stkCallback["MpesaReceiptNumber"].(string)
-
-				var payment models.Payment
-				db.Db.Where("checkout_id = ?", checkoutID).First(&payment)
-				payment.TransactionID = transactionID
-				payment.Status = "Completed"
-				db.Db.Save(&payment)
-				return c.SendStatus(fiber.StatusOK)
-			} else {
-				checkoutID := stkCallback["CheckoutRequestID"].(string)
-				var payment models.Payment
-				db.Db.Where("checkout_id = ?", checkoutID).First(&payment)
-				payment.Status = "Failed"
-				db.Db.Save(&payment)
-				return c.SendStatus(fiber.StatusOK)
-			}
-		}
+	// Ensure "Body" exists
+	body, bodyOk := callbackData["Body"].(map[string]interface{})
+	if !bodyOk {
+		log.Println("Missing 'Body' field in callback")
+		return c.Status(406).JSON(fiber.Map{"error": "Missing 'Body' field"})
 	}
-	return c.SendStatus(406)
-	
+
+	// Ensure "stkCallback" exists
+	stkCallback, stkOk := body["stkCallback"].(map[string]interface{})
+	if !stkOk {
+		log.Println("Missing 'stkCallback' field in callback")
+		return c.Status(406).JSON(fiber.Map{"error": "Missing 'stkCallback' field"})
+	}
+
+	// Ensure "ResultCode" exists
+	resultCode, resultCodeOk := stkCallback["ResultCode"].(float64)
+	if !resultCodeOk {
+		log.Println("Missing 'ResultCode' field in callback")
+		return c.Status(406).JSON(fiber.Map{"error": "Missing 'ResultCode' field"})
+	}
+
+	// Extract CheckoutRequestID
+	checkoutID, checkoutOk := stkCallback["CheckoutRequestID"].(string)
+	if !checkoutOk {
+		log.Println("Missing 'CheckoutRequestID' field in callback")
+		return c.Status(406).JSON(fiber.Map{"error": "Missing 'CheckoutRequestID' field"})
+	}
+
+	// Find the payment record
+	var payment models.Payment
+	db.Db.Where("checkout_id = ?", checkoutID).First(&payment)
+
+	if resultCode == 0 {
+		// Ensure "MpesaReceiptNumber" exists
+		transactionID, transactionOk := stkCallback["MpesaReceiptNumber"].(string)
+		if !transactionOk {
+			log.Println("Missing 'MpesaReceiptNumber' field in callback")
+			return c.Status(406).JSON(fiber.Map{"error": "Missing 'MpesaReceiptNumber' field"})
+		}
+
+		payment.TransactionID = transactionID
+		payment.Status = "Completed"
+	} else {
+		payment.Status = "Failed"
+	}
+
+	// Save updated payment status
+	db.Db.Save(&payment)
+	return c.SendStatus(fiber.StatusOK)
 }
