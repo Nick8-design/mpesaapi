@@ -130,85 +130,98 @@ func StkPushHandler(c *fiber.Ctx) error {
 
 
 
-func CallbackHandler(c *fiber.Ctx) error {
-	// Parse JSON body
-	var callback models.StkCallback
-	if err := json.Unmarshal(c.Body(), &callback); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Invalid JSON format"})
-	}
-
-	// Extract key values
-	resultCode := callback.Body.StkCallback.ResultCode
-	resultDesc := callback.Body.StkCallback.ResultDesc
-	// checkoutRequestID := callback.Body.StkCallback.CheckoutRequestID
-	// merchantRequestID := callback.Body.StkCallback.MerchantRequestID
-
-	var mpesaReceiptNumber string
-	var phoneNumber int64
-	var amount float64
-
-	// Loop through CallbackMetadata to find MpesaReceiptNumber, PhoneNumber, Amount
-	for _, item := range callback.Body.StkCallback.CallbackMetadata.Item {
-		switch item.Name {
-		case "MpesaReceiptNumber":
-			mpesaReceiptNumber = item.Value.(string)
-		case "PhoneNumber":
-			phoneNumber = int64(item.Value.(float64))
-		case "Amount":
-			amount = item.Value.(float64)
-		}
-	}
-
-	// Log transaction details
-	fmt.Printf("Payment received: %+v\n", callback)
-
-	// Check if transaction was successful
-	if resultCode == 0 {
-		fmt.Println("Transaction Successful:", mpesaReceiptNumber, phoneNumber, amount)
-		// Store transaction in database (to be implemented)
-	} else {
-		fmt.Println("Transaction Failed:", resultDesc)
-	}
-
-	// Respond to Safaricom
-	return c.JSON(fiber.Map{
-		"message": "Callback received successfully",
-		"status":  "ok",
-	})
-}
-
-
-
 // func CallbackHandler(c *fiber.Ctx) error {
-// 	var callbackData map[string]interface{}
-
-	
-// 	if err := c.BodyParser(&callbackData); err != nil {
-// 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid callback data"})
+// 	// Parse JSON body
+// 	var callback models.StkCallback
+// 	if err := json.Unmarshal(c.Body(), &callback); err != nil {
+// 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Invalid JSON format"})
 // 	}
 
-// 	log.Println("Callback Response:", callbackData)
+// 	log.Println("Received Callback:", callback)
 
-// 	if body, ok := callbackData["Body"].(map[string]interface{}); ok {
-// 		if stkCallback, ok := body["stkCallback"].(map[string]interface{}); ok {
-// 			if resultCode, ok := stkCallback["ResultCode"].(float64); ok && resultCode == 0 {
-// 				checkoutID := stkCallback["CheckoutRequestID"].(string)
-// 				transactionID := stkCallback["MpesaReceiptNumber"].(string)
+// 	// Extract key values
+// 	resultCode := callback.Body.StkCallback.ResultCode
+// 	resultDesc := callback.Body.StkCallback.ResultDesc
+// 	callbackMetadata := callback.Body.StkCallback.CallbackMetadata.Item
 
-// 				var payment models.Payment
-// 				db.Db.Where("checkout_id = ?", checkoutID).First(&payment)
-// 				payment.TransactionID = transactionID
-// 				payment.Status = "Completed"
-// 				db.Db.Save(&payment)
-// 			} else {
-// 				checkoutID := stkCallback["CheckoutRequestID"].(string)
-// 				var payment models.Payment
-// 				db.Db.Where("checkout_id = ?", checkoutID).First(&payment)
-// 				payment.Status = "Failed"
-// 				db.Db.Save(&payment)
-// 			}
+// 	// If CallbackMetadata is empty, log and return a failure status
+// 	if len(callbackMetadata) == 0 {
+// 		fmt.Println("Transaction Failed or Canceled:", resultDesc)
+// 		return c.JSON(fiber.Map{
+// 			"message": "Transaction Failed or Canceled",
+// 			"status":  "failed",
+// 		})
+// 	}
+
+// 	var mpesaReceiptNumber string
+// 	var phoneNumber int64
+// 	var amount float64
+
+// 	// Extract values from CallbackMetadata
+// 	for _, item := range callbackMetadata {
+// 		switch item.Name {
+// 		case "MpesaReceiptNumber":
+// 			mpesaReceiptNumber = item.Value.(string)
+// 		case "PhoneNumber":
+// 			phoneNumber = int64(item.Value.(float64))
+// 		case "Amount":
+// 			amount = item.Value.(float64)
 // 		}
 // 	}
 
-// 	return c.SendStatus(fiber.StatusOK)
+// 	// Log transaction details
+// 	fmt.Printf("Payment received: %+v\n", callback)
+
+// 	// Check if transaction was successful
+// 	if resultCode == 0 && mpesaReceiptNumber != "" {
+// 		fmt.Println("Transaction Successful:", mpesaReceiptNumber, phoneNumber, amount)
+// 		// Save transaction as successful in database
+// 	} else {
+// 		fmt.Println("Transaction Failed:", resultDesc)
+// 	}
+
+// 	// Respond to Safaricom
+// 	return c.JSON(fiber.Map{
+// 		"message": "Callback received successfully",
+// 		"status":  "ok",
+// 	})
 // }
+
+
+
+
+func CallbackHandler(c *fiber.Ctx) error {
+	var callbackData map[string]interface{}
+
+	
+	if err := c.BodyParser(&callbackData); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid callback data"})
+	}
+
+	log.Println("Callback Response:", callbackData)
+
+	if body, ok := callbackData["Body"].(map[string]interface{}); ok {
+		if stkCallback, ok := body["stkCallback"].(map[string]interface{}); ok {
+			if resultCode, ok := stkCallback["ResultCode"].(float64); ok && resultCode == 0 {
+				checkoutID := stkCallback["CheckoutRequestID"].(string)
+				transactionID := stkCallback["MpesaReceiptNumber"].(string)
+
+				var payment models.Payment
+				db.Db.Where("checkout_id = ?", checkoutID).First(&payment)
+				payment.TransactionID = transactionID
+				payment.Status = "Completed"
+				db.Db.Save(&payment)
+				return c.SendStatus(fiber.StatusOK)
+			} else {
+				checkoutID := stkCallback["CheckoutRequestID"].(string)
+				var payment models.Payment
+				db.Db.Where("checkout_id = ?", checkoutID).First(&payment)
+				payment.Status = "Failed"
+				db.Db.Save(&payment)
+				return c.SendStatus(fiber.StatusOK)
+			}
+		}
+	}
+	return c.SendStatus(406)
+	
+}
