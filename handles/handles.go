@@ -291,3 +291,17 @@ if callbackData.Body.StkCallback.ResultCode == 0 {
 }
  return c.Status(fiber.StatusOK).JSON(fiber.Map{"status":"ok"})
 }
+
+
+
+func Ping(c *fiber.Ctx)error{
+var  ping models.PingModel
+
+if err:=c.BodyParser(&ping);err!=nil{
+	return c.Status(400).JSON("bad request")
+}
+return c.Status(200).JSON("pong")
+
+
+
+}

@@ -28,6 +28,8 @@ func main() {
 
 	app.Post("/stkpush", handles.StkPushHandler)
 	app.Post("/callback", handles.CallbackHandler)
+	app.Get("/", handles.Ping)
+	
 
 
 	log.Fatal(app.Listen(":8080"))
