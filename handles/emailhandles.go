@@ -11,7 +11,7 @@ const (
 	smtpHost     = "smtp.gmail.com"
 	smtpPort     = "587"
 	senderEmail  = "nickeagle888@gmail.com"
-	senderPass   = "aoqr pvsd ynkk phwi" 
+	senderPass   = "vshr fycd capg nysl" 
 )
 
 func SendEmail(to, subject, body string) error {
