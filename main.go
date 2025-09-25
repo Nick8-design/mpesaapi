@@ -29,7 +29,10 @@ func main() {
 
 	app.Post("/stkpush", handles.StkPushHandler)
 	app.Post("/callback", handles.CallbackHandler)
-	app.Post("/", handles.Ping)
+	app.Get("/",func (c *fiber.Ctx)error  {
+		return c.SendString("pong")
+		
+	})
 	
 	app.Post("/send-email", func(c *fiber.Ctx) error {
 		req := new(models.EmailRequest)
